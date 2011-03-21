@@ -1,0 +1,62 @@
+#!/usr/bin/perl -w
+use strict;
+
+use IPC::Open3;
+
+my $host_arg = $ARGV[0] || die "No host passed!";
+my $port_arg = $ARGV[1] || die "No port passed!";
+
+my $SSH_BIN = $ENV{'SSH_BIN'} || 'ssh';
+my $DEBUG   = $ENV{'DEBUG'}   || 0;
+
+my ($dest_host, $bounce_host);
+if ($host_arg =~ /\A([^\^]+)\^([^\^].*)/) {
+  ($dest_host, $bounce_host) = ($1, $2);
+} else {
+  die "Invalid arguments!";
+}
+
+# Deal with usernames
+$bounce_host =~ s/\A([^\^\+]+)\+/$1\@/;
+# Strip username+ syntax from the dest host
+$dest_host =~ s/\A.*\+//;
+
+if ($dest_host =~ /\A([^\^]+)_(\d+)\z/) {
+  $dest_host = $1;
+  $port_arg  = $2;
+}
+
+my @SSH_CMD;
+print STDERR "Connecting to $dest_host:$port_arg via $bounce_host\n" if ($DEBUG);
+# See if the local version of ssh supports -W ('netcat mode')
+my $pid = open3(undef, undef, \*FH, $SSH_BIN);
+while(my $line = <FH>) {
+  if ($line =~ /\[-W\s/) {
+    while (<FH>) {}; # Consume the rest of the output so ssh exits cleanly
+    close(FH);
+    waitpid($pid, 0);
+    print STDERR "Using ssh -W (netcat mode)\n" if ($DEBUG);
+    @SSH_CMD = ($SSH_BIN, '-W', "$dest_host:$port_arg");
+    if ($bounce_host =~ /\A([^\^]+)_(\d+)\z/) {
+      $bounce_host = $1;
+      push(@SSH_CMD, '-p', $2);
+    }
+    push(@SSH_CMD, $bounce_host);
+    print STDERR join(' ', @SSH_CMD) . "\n" if ($DEBUG);
+    exec(@SSH_CMD); # Script stops here
+  }
+}
+close(FH);
+waitpid($pid, 0);
+
+# Fall back to exec'ing netcat on the bounce host
+print STDERR "Using ssh exec netcat\n" if ($DEBUG);
+@SSH_CMD = ($SSH_BIN);
+if ($bounce_host =~ /\A([^\^]+)_(\d+)\z/) {
+  $bounce_host = $1;
+  push(@SSH_CMD, '-p', $2);
+}
+push(@SSH_CMD, $bounce_host);
+push(@SSH_CMD, 'exec', 'nc', $dest_host, $port_arg);
+print STDERR join(' ', @SSH_CMD) . "\n" if ($DEBUG);
+exec(@SSH_CMD);
