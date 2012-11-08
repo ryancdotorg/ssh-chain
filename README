@@ -60,8 +60,3 @@ It's preferable to use OpenSSH 5.4 or newer with ssh-chain. 'netcat mode' (-W)
 was added then and this is faster then exec'ing netcat on the remote host.
 ssh-chain auto-detects if -W is available and will remote exec netcat
 otherwise.
-
-TODO
-
-* Add some way to force remote netcat exec per hop or for all hops even when
-  -W is available

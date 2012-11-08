@@ -6,6 +6,7 @@ use IPC::Open3;
 my $host_arg = $ARGV[0] || die "No host passed!";
 my $port_arg = $ARGV[1] || die "No port passed!";
 
+my $FORCE_NETCAT = $ENV{'FORCE_NETCAT'} || 0;
 my $SSH_BIN = $ENV{'SSH_BIN'} || 'ssh';
 my $DEBUG   = $ENV{'DEBUG'}   || 0;
 
@@ -26,37 +27,62 @@ if ($dest_host =~ /\A([^\^]+)_(\d+)\z/) {
   $port_arg  = $2;
 }
 
-my @SSH_CMD;
 print STDERR "Connecting to $dest_host:$port_arg via $bounce_host\n" if ($DEBUG);
-# See if the local version of ssh supports -W ('netcat mode')
-my $pid = open3(undef, undef, \*FH, $SSH_BIN);
-while(my $line = <FH>) {
-  if ($line =~ /\[-W\s/) {
-    while (<FH>) {}; # Consume the rest of the output so ssh exits cleanly
-    close(FH);
-    waitpid($pid, 0);
-    print STDERR "Using ssh -W (netcat mode)\n" if ($DEBUG);
-    @SSH_CMD = ($SSH_BIN, '-W', "$dest_host:$port_arg");
-    if ($bounce_host =~ /\A([^\^]+)_(\d+)\z/) {
-      $bounce_host = $1;
-      push(@SSH_CMD, '-p', $2);
-    }
-    push(@SSH_CMD, $bounce_host);
-    print STDERR join(' ', @SSH_CMD) . "\n" if ($DEBUG);
-    exec(@SSH_CMD); # Script stops here
-  }
-}
-close(FH);
-waitpid($pid, 0);
 
-# Fall back to exec'ing netcat on the bounce host
-print STDERR "Using ssh exec netcat\n" if ($DEBUG);
-@SSH_CMD = ($SSH_BIN);
-if ($bounce_host =~ /\A([^\^]+)_(\d+)\z/) {
-  $bounce_host = $1;
-  push(@SSH_CMD, '-p', $2);
+if (ssh_has_W()) {
+  ssh_bounce_native($dest_host, $port_arg, $bounce_host);
+} else {
+  ssh_bounce_netcat($dest_host, $port_arg, $bounce_host);
 }
-push(@SSH_CMD, $bounce_host);
-push(@SSH_CMD, 'exec', 'nc', $dest_host, $port_arg);
-print STDERR join(' ', @SSH_CMD) . "\n" if ($DEBUG);
-exec(@SSH_CMD);
+
+# Shouldn't make it this far
+exit 1;
+
+# See if the local version of ssh supports -W ('netcat mode')
+sub ssh_has_W {
+  my $ret = 0;
+  return $ret if ($FORCE_NETCAT);
+  my $pid = open3(undef, undef, \*FH, $SSH_BIN);
+  while(my $line = <FH>) {
+    if ($line =~ /\[-W\s/) {
+      while (<FH>) {}; # Consume the rest of the output so ssh exits cleanly
+      $ret = 1;
+    }
+  }
+  close(FH);
+  waitpid($pid, 0);
+  return $ret;
+}
+
+sub ssh_bounce_native {
+  my $dest_host   = shift;
+  my $port_arg    = shift;
+  my $bounce_host = shift;
+
+  print STDERR "Using ssh -W\n" if ($DEBUG);
+  my @SSH_CMD = ($SSH_BIN, '-W', "$dest_host:$port_arg");
+  if ($bounce_host =~ /\A([^\^]+)_(\d+)\z/) {
+    $bounce_host = $1;
+    push(@SSH_CMD, '-p', $2);
+  }
+  push(@SSH_CMD, $bounce_host);
+  print STDERR join(' ', @SSH_CMD) . "\n" if ($DEBUG);
+  exec(@SSH_CMD); # Script stops here
+}
+
+sub ssh_bounce_netcat {
+  my $dest_host   = shift;
+  my $port_arg    = shift;
+  my $bounce_host = shift;
+
+  print STDERR "Using ssh exec netcat\n" if ($DEBUG);
+  my @SSH_CMD = ($SSH_BIN);
+  if ($bounce_host =~ /\A([^\^]+)_(\d+)\z/) {
+    $bounce_host = $1;
+    push(@SSH_CMD, '-p', $2);
+  }
+  push(@SSH_CMD, $bounce_host);
+  push(@SSH_CMD, 'exec', 'nc', $dest_host, $port_arg);
+  print STDERR join(' ', @SSH_CMD) . "\n" if ($DEBUG);
+  exec(@SSH_CMD); # Script stops here
+}
