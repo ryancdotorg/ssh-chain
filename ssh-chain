@@ -84,6 +84,13 @@ sub ssh_bounce_generic {
     $bounce_host = $1;
     push(@SSH_CMD, '-p', $2);
   }
+  # reduce key warnings and known_hosts pollution by correcting ssh's idea of
+  # what target host should be used when matching known fingerprints. This does
+  # not prevent the whole initial caretpath from being logged/checked, though
+  # that can be prevented by specifying -o Hostname=... yourself
+  if ($bounce_host =~ /\A(?:[^\+\@]+[\@\+])?([A-Za-z0-9_\-\.]+)(?:_\d+)?\^/) {
+    push(@SSH_CMD, '-o', "Hostname=$1");
+  }
   push(@SSH_CMD, $bounce_host);
   push(@SSH_CMD, @$remote_cmd);
   print STDERR join(' ', @SSH_CMD) . "\n" if ($DEBUG);
