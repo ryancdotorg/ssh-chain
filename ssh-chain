@@ -60,14 +60,7 @@ sub ssh_bounce_native {
   my $bounce_host = shift;
 
   print STDERR "Using ssh -W\n" if ($DEBUG);
-  my @SSH_CMD = ($SSH_BIN, '-W', "$dest_host:$port_arg");
-  if ($bounce_host =~ /\A([^\^]+)_(\d+)\z/) {
-    $bounce_host = $1;
-    push(@SSH_CMD, '-p', $2);
-  }
-  push(@SSH_CMD, $bounce_host);
-  print STDERR join(' ', @SSH_CMD) . "\n" if ($DEBUG);
-  exec(@SSH_CMD); # Script stops here
+  ssh_bounce_generic($dest_host, $port_arg, $bounce_host, [$SSH_BIN, '-W', "$dest_host:$port_arg"]);
 }
 
 sub ssh_bounce_netcat {
@@ -76,13 +69,23 @@ sub ssh_bounce_netcat {
   my $bounce_host = shift;
 
   print STDERR "Using ssh exec netcat\n" if ($DEBUG);
-  my @SSH_CMD = ($SSH_BIN);
+  ssh_bounce_generic($dest_host, $port_arg, $bounce_host, [$SSH_BIN], ['exec', 'nc', $dest_host, $port_arg]);
+}
+
+sub ssh_bounce_generic {
+  my $dest_host   = shift;
+  my $port_arg    = shift;
+  my $bounce_host = shift;
+  my $local_cmd   = shift || []; # needs an arrayref
+  my $remote_cmd  = shift || []; # needs an arrayref
+
+  my @SSH_CMD = @$local_cmd; # dereference
   if ($bounce_host =~ /\A([^\^]+)_(\d+)\z/) {
     $bounce_host = $1;
     push(@SSH_CMD, '-p', $2);
   }
   push(@SSH_CMD, $bounce_host);
-  push(@SSH_CMD, 'exec', 'nc', $dest_host, $port_arg);
+  push(@SSH_CMD, @$remote_cmd);
   print STDERR join(' ', @SSH_CMD) . "\n" if ($DEBUG);
   exec(@SSH_CMD); # Script stops here
 }
