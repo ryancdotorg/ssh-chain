@@ -1,14 +1,45 @@
 #!/usr/bin/perl -w
 use strict;
+use English;
 
 use IPC::Open3;
-
-my $host_arg = $ARGV[0] || die "No host passed!";
-my $port_arg = $ARGV[1] || die "No port passed!";
 
 my $FORCE_NETCAT = $ENV{'FORCE_NETCAT'} || 0;
 my $SSH_BIN = $ENV{'SSH_BIN'} || 'ssh';
 my $DEBUG   = $ENV{'DEBUG'}   || 0;
+
+# TODO: robust error handling
+# Attempt to detect if we were called by SSH
+my $PPID = getppid; # Get parent process id
+if ($PPID > 0 && open(my $fh, '<', "/proc/$PPID/cmdline")) {
+  my @cmdline = split(/\0/, join("\n", <$fh>));
+  close($fh);
+  # If not invoked by ssh, operate as a wrapper
+  if ($cmdline[0] !~ /(?:\A|\/)ssh\z/) {
+    unless (grep { /Hostname=/i } @cmdline) {
+      my @SSH_ARGS = @ARGV;
+      # Remove all options
+      while ($SSH_ARGS[0] =~ /\A-/) { splice(@SSH_ARGS, 0, 2); }
+      my $hostname = $SSH_ARGS[0]; # hostname should be left
+      @SSH_ARGS = @ARGV;           # Repopulate arguments
+      $hostname =~ s/.*[\@\+]//;   # Remove username
+      # Since we're overriding the hostname, the Host *^* in the ssh config
+      # file will no longer match, so we need to set the ProxyCommand here
+      unshift(@SSH_ARGS, '-o', "ProxyCommand=$0 $hostname \%p");
+      $hostname =~ s/\^.*//;       # Remove caretpath
+      $hostname =~ s/_.*//;        # Remove port spec
+      # Prevent an unknown host key warning for the final host
+      unshift(@SSH_ARGS, '-o', "Hostname=$hostname");
+      print STDERR join(' ', $SSH_BIN, @SSH_ARGS) . "\n" if ($DEBUG);
+      exec($SSH_BIN, @SSH_ARGS); # Script stops here
+    }
+  }
+}
+
+# If we get to here, we're acting as a ProxyCommand
+
+my $host_arg = $ARGV[0] || die "No host passed!";
+my $port_arg = $ARGV[1] || die "No port passed!";
 
 my ($dest_host, $bounce_host);
 if ($host_arg =~ /\A([^\^]+)\^([^\^].*)/) {
