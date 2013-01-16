@@ -15,6 +15,9 @@ and you're done.
 
 USAGE
 
+ssh-chain can act as a wrapper to ssh in order to avoid filling your
+known_hosts file with garbage - just run ssh-chain instead of ssh.
+
 The simple use case is this:
 
 ssh final.example^second.example^first.example
