@@ -74,7 +74,7 @@ if ($dest_host =~ /\A([^\^]+)_(\d+)\z/) {
 print STDERR "Connecting to $dest_host:$port_arg via $bounce_host\n" if ($DEBUG);
 
 # See if the local version of ssh supports -W ('netcat mode')
-if ($SSH_OPTS->{args}->{W}) {
+if (!$FORCE_NETCAT && $SSH_OPTS->{args}->{W}) {
   ssh_bounce_native($dest_host, $port_arg, $bounce_host);
 } else {
   ssh_bounce_netcat($dest_host, $port_arg, $bounce_host);
