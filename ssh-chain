@@ -23,7 +23,7 @@ if ($PPID > 0 && open(my $fh, '<', "/proc/$PPID/cmdline")) {
   close($fh);
   # If not invoked by ssh, operate as a wrapper
   if ($cmdline[0] !~ /(?:\A|\/)ssh\z/) {
-    unless (grep { /Hostname=/i } @cmdline) {
+    unless (grep { /HostKeyAlias=/i } @cmdline) {
       my @SSH_ARGS = @ARGV;
       # Remove all options leaving the hostname
       while (scalar(@SSH_ARGS) && $SSH_ARGS[0] =~ /\A-[^-]*([^-])\Z/) {
@@ -41,7 +41,7 @@ if ($PPID > 0 && open(my $fh, '<', "/proc/$PPID/cmdline")) {
         $hostname =~ s/\^.*//;       # Remove caretpath
         $hostname =~ s/_.*//;        # Remove port spec
         # Prevent an unknown host key warning for the final host
-        unshift(@SSH_ARGS, '-o', "Hostname=$hostname");
+        unshift(@SSH_ARGS, '-o', "HostKeyAlias=$hostname");
       }
       print STDERR join(' ', $SSH_BIN, @SSH_ARGS) . "\n" if ($DEBUG);
       exec($SSH_BIN, @SSH_ARGS); # Script stops here
@@ -145,9 +145,9 @@ sub ssh_bounce_generic {
   # reduce key warnings and known_hosts pollution by correcting ssh's idea of
   # what target host should be used when matching known fingerprints. This does
   # not prevent the whole initial caretpath from being logged/checked, though
-  # that can be prevented by specifying -o Hostname=... yourself
+  # that can be prevented by specifying -o HostKeyAlias=... yourself
   if ($bounce_host =~ /\A(?:[^\+\@]+[\@\+])?([A-Za-z0-9_\-\.]+)(?:_\d+)?\^/) {
-    push(@SSH_CMD, '-o', "Hostname=$1");
+    push(@SSH_CMD, '-o', "HostKeyAlias=$1");
   }
   push(@SSH_CMD, $bounce_host);
   push(@SSH_CMD, @$remote_cmd);
