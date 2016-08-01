@@ -2,6 +2,10 @@ DESCRIPTION
 
 ssh-chain - ssh via a chain of intermediary hosts
 
+NOTE
+
+This functionality is built into OpenSSH via the -J option as of version 7.3
+
 INSTALL
 
 Copy the ssh-chain script to somewhere that's in your path. Append the
