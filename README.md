@@ -5,7 +5,7 @@ ssh-chain - ssh via a chain of intermediary hosts
 NOTE
 ----
 This functionality is built into OpenSSH via the -J option as of version
-7.3, therefore this tool will no longer be maintained.
+7.3, therefore **this tool will no longer be maintained**.
 
 INSTALL
 -------
