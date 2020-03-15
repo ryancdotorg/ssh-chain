@@ -1,23 +1,28 @@
 DESCRIPTION
-
+-----------
 ssh-chain - ssh via a chain of intermediary hosts
 
 NOTE
-
-This functionality is built into OpenSSH via the -J option as of version 7.3
+----
+This functionality is built into OpenSSH via the -J option as of version
+7.3, therefore this tool will no longer be maintained.
 
 INSTALL
+-------
 
 Copy the ssh-chain script to somewhere that's in your path. Append the
 following to ~/.ssh/config or /etc/ssh/ssh_config:
 
+```
 # This should be the last entry
 Host *^*
 ProxyCommand ssh-chain %h %p
+```
 
 and you're done.
 
 USAGE
+-----
 
 ssh-chain can act as a wrapper to ssh in order to avoid filling your
 known_hosts file with garbage - just run ssh-chain instead of ssh.
@@ -36,6 +41,7 @@ ssh as a backend (e.g. rsync, git, svn, etc.) and all the standard features
 such as port forwarding should work.
 
 ADVANCED USAGE
+--------------
 
 Sometimes you'll have need to specify a username or port for an
 intermediary host.  Since ssh will normally consume these, different (and
@@ -47,21 +53,27 @@ at symbol since this doesn't get fed to the ProxyCommand.  Example:
 jdoe@final.example^johnd+second.example_2222^john+first.example_443
 
 HOST-SPECIFIC OPTIONS
+---------------------
 
 To make host-specific options for hosts other than the first one in the chain
 work, you need to change lines like this
 
+```
 Host *.foo.example bar.example
 User john
 Port 2222
+```
 
 to
 
+```
 Host *.foo.example *.foo.example^* bar.example bar.example^*
 User john
 Port 2222
+```
 
 NOTES
+-----
 
 It's preferable to use OpenSSH 5.4 or newer with ssh-chain. 'netcat mode' (-W)
 was added then and this is faster then exec'ing netcat on the remote host.
